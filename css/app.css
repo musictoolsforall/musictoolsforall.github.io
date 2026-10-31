@@ -1,0 +1,120 @@
+:root {
+  --bg: #fbf8f3;
+  --surface: #ffffff;
+  --text: #1f1b16;
+  --muted: #6b6258;
+  --border: #e3dcd2;
+  --accent: #9c3d1f;
+  --accent-soft: #f5e3da;
+  --jaru: #b3261e;
+  --mark: #1d5fa8;
+  --cursor: #fff1c2;
+  --fs: 1;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17140f; --surface: #221e18; --text: #f1ebe2; --muted: #a89d90;
+    --border: #3a332b; --accent: #e08a62; --accent-soft: #3b271d;
+    --jaru: #ff7b6e; --mark: #7fb3ff; --cursor: #4a3e17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17140f; --surface: #221e18; --text: #f1ebe2; --muted: #a89d90;
+  --border: #3a332b; --accent: #e08a62; --accent-soft: #3b271d;
+  --jaru: #ff7b6e; --mark: #7fb3ff; --cursor: #4a3e17;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Noto Sans Tamil", system-ui, sans-serif;
+  line-height: 1.4;
+}
+main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+a { color: var(--accent); }
+h1 { font-size: 1.5rem; margin: 0 0 12px; }
+
+button, select, input, textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+.banner {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.toolbar .spacer { flex: 1; }
+.muted { color: var(--muted); }
+
+/* ---------- notation ---------- */
+.notation { position: relative; font-size: calc(18px * var(--fs)); }
+.notation .line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 6px;
+  padding: 6px 0 14px;
+  border-bottom: 1px dashed var(--border);
+}
+.notation .syl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3.2em;
+  padding: 0 4px 4px;
+  border-radius: 6px;
+  cursor: default;
+}
+.notation .syl.cursor { background: var(--cursor); outline: 2px solid var(--accent); }
+.notation .tala { font-size: 1.6em; color: var(--muted); align-self: center; padding: 0 2px; }
+
+.sw { display: flex; gap: 0.35em; white-space: nowrap; }
+.sw-top { padding-top: 1.3em; }        /* room for gamaka marks and the jaru line */
+.sw:not(.sw-top) { padding-top: 0.35em; }
+.sw-ta { font-size: 1.4em; font-weight: 600; }
+.sw-en { font-size: 1.15em; font-weight: 600; }
+.sw-top + .sw { font-size: 0.95em; font-weight: 500; color: var(--muted); }
+
+.note { position: relative; display: inline-block; padding: 0 1px 0.35em; }
+.note.empty { min-width: 1em; }
+.note sub { font-size: 0.55em; font-family: system-ui, sans-serif; font-weight: 600; vertical-align: -0.35em; }
+.note .dots {
+  position: absolute; left: 0; right: 0; text-align: center;
+  font-size: 0.55em; line-height: 1; letter-spacing: -0.1em;
+}
+.note[class*="oct-up"] .dots { top: -0.55em; }
+.note[class*="oct-down"] .dots { bottom: -0.1em; }
+.note .mark {
+  position: absolute; left: 0; right: 0; top: -1.25em;
+  text-align: center; color: var(--mark); font-size: 0.85em; line-height: 1;
+}
+.note.pending { outline: 2px dashed var(--jaru); border-radius: 3px; }
+
+.ly { text-align: center; white-space: nowrap; }
+.ly-ta { font-size: 1.5em; border-top: 1px solid var(--border); margin-top: 2px; padding-top: 2px; }
+.ly-en { font-size: 1em; color: var(--muted); font-style: italic; }
+
+svg.jarus { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+svg.jarus line.jaru { stroke: var(--jaru); stroke-width: 2.5; stroke-linecap: round; }
+
+@media (max-width: 600px) {
+  main { padding: 12px 16px; }
+  .notation .syl { min-width: 2.6em; }
+}

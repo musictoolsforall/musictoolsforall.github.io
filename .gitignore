@@ -1,3 +1,4 @@
 .superpowers/
 .remember/
 node_modules/
+.playwright-mcp/
