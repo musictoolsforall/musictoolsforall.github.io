@@ -68,3 +68,14 @@ test('empty column and override', () => {
   setSyllableEn(s, s.lines[0].syllables[0].id, '');
   assert.equal(s.lines[0].syllables[0].lyricEn, 'kaa');
 });
+
+test('gamaka key validation', async () => {
+  const { gamakaKeyError } = await import('../js/model.js');
+  const s = createSong('t');
+  assert.equal(gamakaKeyError(s.gamakaTable, 'k', null), '');
+  assert.match(gamakaKeyError(s.gamakaTable, 'r', null), /swara/i);
+  assert.match(gamakaKeyError(s.gamakaTable, "'", null), /already used/i);
+  assert.match(gamakaKeyError(s.gamakaTable, 'v', null), /Pull after pluck/);
+  assert.equal(gamakaKeyError(s.gamakaTable, 'v', 'pull'), '');
+  assert.match(gamakaKeyError(s.gamakaTable, 'kk', null), /one character/i);
+});

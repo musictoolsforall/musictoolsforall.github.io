@@ -12,6 +12,17 @@ export const DEFAULT_GAMAKAS = Object.freeze([
   { id: 'sphurita', name: 'Sphurita', mark: 'ˆ', key: '^' },
 ]);
 
+const RESERVED_KEYS = new Set([..."srgmpdn", ..."SRGMPDN", ..."123,'./| "]);
+
+// Returns '' if `key` can be used for a gamaka, otherwise a message to show.
+export function gamakaKeyError(table, key, selfId) {
+  if ([...key].length !== 1) return 'Use exactly one character.';
+  if (/[srgmpdn]/i.test(key)) return 'That key types a swara.';
+  if (RESERVED_KEYS.has(key)) return 'That key is already used by the editor.';
+  const other = table.find((g) => g.key === key && g.id !== selfId);
+  return other ? `Already used by ${other.name}.` : '';
+}
+
 const uid = () => crypto.randomUUID();
 const touch = (song) => { song.updatedAt = Date.now(); };
 

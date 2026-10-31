@@ -149,3 +149,22 @@ kbd { font-family: ui-monospace, monospace; background: var(--accent-soft); bord
 .syl-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
 .syl-dialog label { display: block; margin-bottom: 8px; }
 .syl-dialog input { width: 100%; }
+
+/* ---------- list & settings ---------- */
+.song-list { display: flex; flex-direction: column; gap: 8px; }
+.song-row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+}
+.song-row .toolbar { margin: 0; }
+.song-info { display: flex; flex-direction: column; min-width: 0; }
+.song-title { font-size: 1.15rem; font-weight: 600; }
+.message.error, .error { color: var(--jaru); }
+.settings-dialog { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; width: min(36em, 94vw); }
+.settings-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
+.settings-dialog h2 { margin-top: 0; }
+.settings-dialog label { display: block; margin: 8px 0 4px; }
+.gamaka-table { border-collapse: collapse; margin: 6px 0 10px; width: 100%; }
+.gamaka-table th { text-align: left; font-weight: 600; padding: 4px; }
+.gamaka-table td { padding: 3px 4px; }
+.gamaka-table input { width: 100%; }

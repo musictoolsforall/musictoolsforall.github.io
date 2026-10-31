@@ -5,6 +5,8 @@ import { createSong, setLyrics, addNote, addJaru, toggleGamaka, insertLineAfter 
 import { parseScale } from './swara.js';
 import { mountPractice } from './screens/practice.js';
 import { mountEditor, mountSongPlayer } from './screens/editor.js';
+import { mountList } from './screens/list.js';
+import { openSettings } from './screens/settings.js';
 
 const root = document.getElementById('app');
 const storePromise = openStore();
@@ -68,9 +70,9 @@ async function route() {
       mountPlayer: (slot, song) => mountSongPlayer(slot, store, song, () => store.putSong(song)),
     });
   } else if (screen === 'edit' && id) {
-    cleanup = await mountEditor(view, store, id);
+    cleanup = await mountEditor(view, store, id, { openSettings });
   } else {
-    view.innerHTML = '<h1>Swara Notes</h1><p><a href="#/practice/demo">Open the demo</a></p>';
+    cleanup = await mountList(view, store);
   }
 }
 
