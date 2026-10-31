@@ -2,6 +2,7 @@
 
 import { splitLyrics } from './syllables.js';
 import { transliterate } from './translit.js';
+import { toTamil } from './translit-ta.js';
 import { isValidVariant } from './swara.js';
 
 export const FORMAT_VERSION = 1;
@@ -36,7 +37,7 @@ function makeSyllable(lyricTa = '') {
 export function createSong(title) {
   return {
     id: uid(), formatVersion: FORMAT_VERSION, title, raga: '', tala: '',
-    useTalaMarkers: false, defaultScale: {}, lines: [], jarus: [],
+    useTalaMarkers: false, defaultScale: {}, lyricScripts: { ta: true, en: true }, lines: [], jarus: [],
     gamakaTable: DEFAULT_GAMAKAS.map((g) => ({ ...g })), recordingName: '',
     updatedAt: Date.now(),
   };
@@ -54,9 +55,15 @@ export function noteCount(song) {
   return allNotes(song).length;
 }
 
-export function setLyrics(song, text) {
+// `from`: the script the pasted text is in ('ta' or 'en'). `other`: whether
+// to also show it in the other script. English text is converted to Tamil
+// first, since syllables are split on the Tamil.
+export function setLyrics(song, text, { from = 'ta', other = true } = {}) {
   if (noteCount(song) > 0) throw new Error('song has swaras');
-  song.lines = splitLyrics(text).map((syls) => ({ id: uid(), syllables: syls.map(makeSyllable) }));
+  song.lyricsFrom = from;
+  song.lyricsSource = text;
+  song.lyricScripts = { ta: from === 'ta' || other, en: from === 'en' || other };
+  song.lines = splitLyrics(from === 'en' ? toTamil(text) : text).map((syls) => ({ id: uid(), syllables: syls.map(makeSyllable) }));
   song.jarus = [];
   touch(song);
 }

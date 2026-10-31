@@ -89,3 +89,28 @@ test('gamakaUsage counts notes carrying a gamaka', async () => {
   assert.equal(gamakaUsage(s, 'kampita'), 2);
   assert.equal(gamakaUsage(s, 'pull'), 0);
 });
+
+test('setLyrics from english letters builds tamil syllables', () => {
+  const s = createSong('t');
+  setLyrics(s, 'naan amma', { from: 'en' });
+  assert.deepEqual(s.lines[0].syllables.map((x) => [x.lyricTa, x.lyricEn]),
+    [['நான்', 'naan'], ['அம்', 'am'], ['ம', 'ma']]);
+  assert.deepEqual(s.lyricScripts, { ta: true, en: true });
+});
+
+test('setLyrics can hide the other script', () => {
+  const s = createSong('t');
+  setLyrics(s, 'naan', { from: 'en', other: false });
+  assert.deepEqual(s.lyricScripts, { ta: false, en: true });
+  setLyrics(s, 'க', { from: 'ta', other: false });
+  assert.deepEqual(s.lyricScripts, { ta: true, en: false });
+  setLyrics(s, 'க');
+  assert.deepEqual(s.lyricScripts, { ta: true, en: true });
+});
+
+test('setLyrics keeps the pasted text for re-editing', () => {
+  const s = createSong('t');
+  setLyrics(s, 'kaaRRu\nvaazhkai', { from: 'en' });
+  assert.equal(s.lyricsSource, 'kaaRRu\nvaazhkai');
+  assert.equal(s.lyricsFrom, 'en');
+});

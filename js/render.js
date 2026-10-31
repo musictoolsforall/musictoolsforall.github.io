@@ -51,8 +51,9 @@ function syllableEl(syl, lineIdx, sylIdx, song, opts) {
   const scripts = opts.script === 'both' ? ['ta', 'en'] : [opts.script];
   scripts.forEach((s, i) => col.append(swaraRow(syl, s, opts, song, i === 0)));
   const empty = syl.lyricTa === '';
-  if (opts.script !== 'en') col.append(el('div', 'ly ly-ta', empty ? '—' : syl.lyricTa));
-  if (opts.script !== 'ta') col.append(el('div', 'ly ly-en', empty ? '—' : syl.lyricEn));
+  const shown = song.lyricScripts ?? { ta: true, en: true };
+  if (opts.script !== 'en' && shown.ta) col.append(el('div', 'ly ly-ta', empty ? '—' : syl.lyricTa));
+  if (opts.script !== 'ta' && shown.en) col.append(el('div', 'ly ly-en', empty ? '—' : syl.lyricEn));
   return col;
 }
 

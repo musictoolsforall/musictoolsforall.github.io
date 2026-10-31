@@ -123,11 +123,29 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
   function showLyrics(open) {
     lyricsPanel.replaceChildren();
     if (!open) return;
-    const ta = h('textarea', {
-      rows: 8, placeholder: 'Paste Tamil lyrics here, one line per line of the song',
-      value: song.lines.map((l) => l.syllables.map((s) => s.lyricTa).join(' ')).join('\n'),
-    });
+    let from = song.lyricsFrom ?? 'ta';
+    const shown = song.lyricScripts ?? { ta: true, en: true };
+    const joined = (key) => song.lines.map((l) => l.syllables.map((s) => s[key]).join(' ')).join('\n');
+    // Prefer exactly what was pasted; older songs fall back to the syllables.
+    const ta = h('textarea', { rows: 8, value: song.lyricsSource ?? joined(from === 'en' ? 'lyricEn' : 'lyricTa') });
     ta.style.width = '100%';
+    const placeholder = () => {
+      ta.placeholder = from === 'en'
+        ? 'Paste lyrics in English letters (e.g. naan unnai…), one line per line of the song'
+        : 'Paste Tamil lyrics here, one line per line of the song';
+    };
+    placeholder();
+    const radio = (value, label) => {
+      const r = h('input', { type: 'radio', name: 'lyrics-from', value, checked: from === value });
+      r.onchange = () => { from = value; placeholder(); otherLabel.lastChild.textContent = otherText(); };
+      return h('label', {}, r, ` ${label}`);
+    };
+    const otherText = () => (from === 'en' ? ' Also write them in Tamil script for me' : ' Also write them in English letters for me');
+    const other = h('input', { type: 'checkbox', checked: song.lines.length ? (from === 'en' ? shown.ta : shown.en) : true });
+    const otherLabel = h('label', {}, other, h('span', { textContent: otherText() }));
+    const options = h('div', { className: 'toolbar lyrics-options' },
+      h('strong', { textContent: 'These lyrics are in:' }), radio('ta', 'தமிழ் (Tamil script)'), radio('en', 'English letters'), otherLabel);
+    const hint = h('p', { className: 'muted', textContent: 'Converting from English letters is a best guess — double-click any syllable to fix it. Tips: aa = ா, ee = ீ, zh = ழ, N = ண, L = ள, R = ற.' });
     const use = h('button', {
       className: 'primary', textContent: 'Use these lyrics',
       onclick: () => {
@@ -135,7 +153,7 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
           if (!confirm('This clears all swaras for this song. Continue?')) return;
           clearSwaras(song);
         }
-        setLyrics(song, ta.value);
+        setLyrics(song, ta.value, { from, other: other.checked });
         state.cursor = { lineIdx: 0, sylIdx: 0 };
         state.lastNoteId = null;
         showLyrics(false);
@@ -143,7 +161,7 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
       },
     });
     const cancel = h('button', { textContent: 'Cancel', onclick: () => showLyrics(false) });
-    lyricsPanel.append(ta, h('div', { className: 'toolbar' }, use, song.lines.length ? cancel : ''));
+    lyricsPanel.append(options, ta, hint, h('div', { className: 'toolbar' }, use, song.lines.length ? cancel : ''));
     ta.focus();
   }
 
