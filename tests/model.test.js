@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  createSong, setLyrics, addNote, addJaru, deleteNote, mergeWithNext, splitSyllable,
+  deleteSyllable, insertSyllableAfter, setSyllableEn, editSyllableText, noteCount, clearSwaras,
+} from '../js/model.js';
+
+test('setLyrics builds syllables with translit', () => {
+  const s = createSong('t'); setLyrics(s, 'ஸ்ரீ கணநாத');
+  assert.deepEqual(s.lines[0].syllables.map((x) => [x.lyricTa, x.lyricEn]),
+    [['ஸ்ரீ', 'sree'], ['க', 'ka'], ['ண', 'na'], ['நா', 'naa'], ['த', 'tha']]);
+  assert.equal(s.formatVersion, 1);
+});
+
+test('setLyrics refuses when swaras exist', () => {
+  const s = createSong('t'); setLyrics(s, 'க'); addNote(s, s.lines[0].syllables[0].id, { swara: 'S' });
+  assert.throws(() => setLyrics(s, 'ண'), /has swaras/);
+  clearSwaras(s); assert.equal(noteCount(s), 0);
+  setLyrics(s, 'ண'); assert.equal(s.lines[0].syllables[0].lyricTa, 'ண');
+});
+
+test('default scale fills variant, explicit overrides', () => {
+  const s = createSong('t'); s.defaultScale = { R: 2 }; setLyrics(s, 'க');
+  const id = s.lines[0].syllables[0].id;
+  assert.equal(addNote(s, id, { swara: 'R' }).variant, 2);
+  assert.equal(addNote(s, id, { swara: 'R', variant: 1 }).variant, 1);
+  assert.equal(addNote(s, id, { swara: 'G' }).variant, 0);
+});
+
+test('jaru normalised and removed with note', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண');
+  const [a, b] = s.lines[0].syllables;
+  const n1 = addNote(s, a.id, { swara: 'G' }), n2 = addNote(s, b.id, { swara: 'M' });
+  const j = addJaru(s, n2.id, n1.id);
+  assert.deepEqual([j.from, j.to], [n1.id, n2.id]);
+  assert.equal(addJaru(s, n1.id, n1.id), null);
+  deleteNote(s, n2.id); assert.equal(s.jarus.length, 0);
+});
+
+test('merge concatenates notes, split keeps notes on first', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண');
+  const [a, b] = s.lines[0].syllables;
+  addNote(s, a.id, { swara: 'S' }); addNote(s, b.id, { swara: 'R' });
+  mergeWithNext(s, a.id);
+  assert.equal(s.lines[0].syllables.length, 1);
+  assert.equal(s.lines[0].syllables[0].lyricTa, 'கண');
+  assert.deepEqual(s.lines[0].syllables[0].notes.map((n) => n.swara), ['S', 'R']);
+  const second = splitSyllable(s, a.id, 1);
+  assert.equal(second.lyricTa, 'ண'); assert.equal(second.notes.length, 0);
+  assert.equal(s.lines[0].syllables[0].lyricTa, 'க');
+});
+
+test('delete syllable drops jaru and empty line', () => {
+  const s = createSong('t'); setLyrics(s, 'க\nண');
+  const a = s.lines[0].syllables[0], b = s.lines[1].syllables[0];
+  const n1 = addNote(s, a.id, { swara: 'S' }), n2 = addNote(s, b.id, { swara: 'R' });
+  addJaru(s, n1.id, n2.id); deleteSyllable(s, b.id);
+  assert.equal(s.jarus.length, 0); assert.equal(s.lines.length, 1);
+});
+
+test('empty column and override', () => {
+  const s = createSong('t'); setLyrics(s, 'க');
+  const e = insertSyllableAfter(s, s.lines[0].syllables[0].id);
+  assert.equal(e.lyricTa, '');
+  setSyllableEn(s, s.lines[0].syllables[0].id, 'gaa');
+  editSyllableText(s, s.lines[0].syllables[0].id, 'கா');
+  assert.equal(s.lines[0].syllables[0].lyricEn, 'gaa');
+  setSyllableEn(s, s.lines[0].syllables[0].id, '');
+  assert.equal(s.lines[0].syllables[0].lyricEn, 'kaa');
+});
