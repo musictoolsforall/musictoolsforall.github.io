@@ -27,16 +27,16 @@ export async function mountPractice(root, store, songId, { mountPlayer } = {}) {
   root.replaceChildren();
   if (!song) {
     root.innerHTML = '<p>Song not found. <a href="#/">Back to songs</a></p>';
-    return;
+    return () => {};
   }
 
   const playerSlot = document.createElement('div');
-  playerSlot.className = 'player-slot';
+  playerSlot.className = 'player-slot sticky';
   const toolbar = document.createElement('div');
   toolbar.className = 'toolbar';
   const notation = document.createElement('div');
   root.append(playerSlot, toolbar, notation);
-  if (mountPlayer) await mountPlayer(playerSlot, song);
+  const player = mountPlayer ? await mountPlayer(playerSlot, song) : null;
 
   let script = getSetting('script', 'both');
   let hideVariants = getSetting('hideVariants', false);
@@ -74,4 +74,5 @@ export async function mountPractice(root, store, songId, { mountPlayer } = {}) {
     renderNotation(notation, song, { script, hideVariants });
   };
   draw();
+  return () => player?.destroy();
 }

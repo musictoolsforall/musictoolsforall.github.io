@@ -4,6 +4,7 @@ import { openStore } from './storage.js';
 import { createSong, setLyrics, addNote, addJaru, toggleGamaka, insertLineAfter } from './model.js';
 import { parseScale } from './swara.js';
 import { mountPractice } from './screens/practice.js';
+import { mountEditor, mountSongPlayer } from './screens/editor.js';
 
 const root = document.getElementById('app');
 const storePromise = openStore();
@@ -44,8 +45,12 @@ export function buildDemoSong() {
   return song;
 }
 
+let cleanup = () => {};
+
 async function route() {
   const store = await storePromise;
+  cleanup();
+  cleanup = () => {};
   const banner = store.persistent ? null : Object.assign(document.createElement('div'), {
     className: 'banner',
     textContent: 'This browser is not letting the app save. Your work will be lost when you close the tab — use Export to keep it.',
@@ -59,7 +64,11 @@ async function route() {
   const view = document.createElement('div');
   root.replaceChildren(...(banner ? [banner] : []), view);
   if (screen === 'practice' && id) {
-    await mountPractice(view, store, id);
+    cleanup = await mountPractice(view, store, id, {
+      mountPlayer: (slot, song) => mountSongPlayer(slot, store, song, () => store.putSong(song)),
+    });
+  } else if (screen === 'edit' && id) {
+    cleanup = await mountEditor(view, store, id);
   } else {
     view.innerHTML = '<h1>Swara Notes</h1><p><a href="#/practice/demo">Open the demo</a></p>';
   }
