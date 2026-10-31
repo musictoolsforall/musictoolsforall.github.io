@@ -20,3 +20,13 @@ test('english letters to tamil script', () => {
 test('keeps spaces, lines, digits and punctuation', () => {
   assert.equal(toTamil('naan 2!\namma'), 'நான் 2!\nஅம்ம');
 });
+
+test('common film-song spellings for ன்ற and ற்ற', () => {
+  for (const [en, ta] of [
+    ['thendral', 'தென்றல்'],
+    ['nanri', 'நன்றி'],
+    ['kaatru', 'காற்று'],
+    ['petra', 'பெற்ற'],
+    ['thirai', 'திரை'],
+  ]) assert.equal(toTamil(en), ta, en);
+});

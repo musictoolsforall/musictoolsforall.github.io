@@ -29,7 +29,10 @@ function match(table, word, i) {
 
 function convertWord(raw) {
   // A capital at the start of a word is just sentence case, not ண/ள/ற.
-  const word = raw.length ? raw[0].toLowerCase() + raw.slice(1) : raw;
+  const word = (raw.length ? raw[0].toLowerCase() + raw.slice(1) : raw)
+    // How people usually spell ன்ற and ற்ற: thendral, nanri, kaatru.
+    .replace(/ndr|nr/g, 'nR')
+    .replace(/(?<=[aeiouAEIOU])tr/g, 'RR');
   const tokens = [];
   for (let i = 0; i < word.length;) {
     const v = match(VOWELS, word, i);
