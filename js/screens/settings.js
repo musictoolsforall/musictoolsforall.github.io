@@ -1,7 +1,7 @@
 // Song settings: default raga scale, tala markers, and the gamaka table.
 
 import { parseScale, formatScale } from '../swara.js';
-import { gamakaKeyError } from '../model.js';
+import { gamakaKeyError, gamakaUsage } from '../model.js';
 import { setSetting } from '../storage.js';
 
 function h(tag, props = {}, ...children) {
@@ -36,7 +36,16 @@ export function openSettings(song, onChange) {
       const name = h('input', { value: g.name, oninput: () => { g.name = name.value; } });
       const mark = h('input', { value: g.mark, size: 3, oninput: () => { g.mark = mark.value; } });
       const key = h('input', { value: g.key, size: 2, maxLength: 2, oninput: () => { g.key = key.value; } });
-      const del = h('button', { type: 'button', textContent: 'Remove', onclick: () => { table.splice(table.indexOf(g), 1); drawRows(); } });
+      const del = h('button', {
+        type: 'button', textContent: 'Remove',
+        onclick: () => {
+          const used = gamakaUsage(song, g.id);
+          if (used && !confirm(`${g.name} is used on ${used} note${used > 1 ? 's' : ''}. Removing it deletes those marks when you press Save. Remove?`)) return;
+          table.splice(table.indexOf(g), 1);
+          drawRows();
+          dialog.focus();
+        },
+      });
       rows.append(h('tr', {}, h('td', {}, name), h('td', {}, mark), h('td', {}, key), h('td', {}, del)));
     }
   };

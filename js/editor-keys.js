@@ -8,6 +8,18 @@ import {
 const SWARA_KEYS = new Set(['s', 'r', 'g', 'm', 'p', 'd', 'n']);
 const TALA_CYCLE = { '': '|', '|': '||', '||': '' };
 
+// The key to act on for a DOM keyboard event, or null to ignore it. On a
+// Tamil (or other non-Latin) layout letters arrive as Tamil characters, so
+// letter keys fall back to the physical key.
+export function normalizeKey(e) {
+  if (e.isComposing || e.key === 'Process' || e.key === 'Dead') return null;
+  const letter = /^Key([A-Z])$/.exec(e.code ?? '');
+  if (letter && (e.altKey || (e.key.length === 1 && !/^[\x20-\x7E]$/.test(e.key)))) {
+    return letter[1].toLowerCase();
+  }
+  return e.key;
+}
+
 export function createEditorState(song) {
   return {
     song, cursor: { lineIdx: 0, sylIdx: 0 },
@@ -95,6 +107,11 @@ export function applyKey(state, ev) {
     return { handled: false };
   }
 
+  if (key === 'Escape') {
+    state.pendingJaruFrom = null;
+    state.pendingOctave = 0;
+    return { handled: true };
+  }
   if (SWARA_KEYS.has(lower)) { enterNote(state, lower.toUpperCase()); return { handled: true }; }
   if (key === ',') { enterNote(state, ','); return { handled: true }; }
   if (key === '1' || key === '2' || key === '3') {

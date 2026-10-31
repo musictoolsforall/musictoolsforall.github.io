@@ -25,3 +25,13 @@ test('rejects bad files', () => {
   assert.throws(() => importSong('{"app":"swara-notes","formatVersion":9,"song":{"lines":[]}}'), /newer version/i);
   assert.throws(() => importSong('{"app":"swara-notes","formatVersion":1,"song":{}}'), /not a valid/i);
 });
+
+test('rejects structurally broken songs and fills defaults', () => {
+  const wrap = (song) => JSON.stringify({ app: 'swara-notes', formatVersion: 1, song });
+  assert.throws(() => importSong(wrap({ lines: [{}] })), /not a valid/i);
+  assert.throws(() => importSong(wrap({ lines: [{ syllables: [{}] }] })), /not a valid/i);
+  const { song } = importSong(wrap({ title: 'x', lines: [{ id: 'l', syllables: [{ id: 's', lyricTa: 'க', notes: [] }] }] }));
+  assert.deepEqual(song.jarus, []);
+  assert.deepEqual(song.defaultScale, {});
+  assert.equal(song.gamakaTable.length, 3);
+});

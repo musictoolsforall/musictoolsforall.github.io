@@ -1,7 +1,9 @@
 // Split Tamil lyrics into lines of syllables.
 
 const PULLI = '்';
-const TRAILING_PUNCT = /^[,.!?…]+$/;
+const TRAILING_PUNCT = /^[,.!?…)\]}"':;\-]+$/;
+const LEADING_PUNCT = /^[(\[{"']+$/;
+const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g;
 
 const isVowel = (c) => c >= 'அ' && c <= 'ஔ';
 const isConsonant = (c) => c >= 'க' && c <= 'ஹ';
@@ -37,8 +39,11 @@ function splitWord(word) {
   const syllables = [];
   let carry = ''; // word-initial pulli consonants waiting for the next unit
   let prevTamil = false;
-  for (const u of units(word)) {
-    if (u.tamil && u.text.endsWith(PULLI)) {
+  const all = units(word);
+  for (const [i, u] of all.entries()) {
+    if (!u.tamil && LEADING_PUNCT.test(u.text) && all[i + 1]?.tamil) {
+      carry += u.text;
+    } else if (u.tamil && u.text.endsWith(PULLI)) {
       if (syllables.length && prevTamil) syllables[syllables.length - 1] += u.text;
       else carry += u.text;
     } else if (!u.tamil && prevTamil && TRAILING_PUNCT.test(u.text)) {
@@ -55,6 +60,7 @@ function splitWord(word) {
 
 export function splitLyrics(text) {
   return String(text)
+    .replace(ZERO_WIDTH, '')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)

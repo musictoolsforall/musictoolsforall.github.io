@@ -17,3 +17,12 @@ test('lines and blanks', () => {
 test('mixed script and punctuation', () => {
   assert.deepEqual(splitLyrics('ஓ… hello 2'), [['ஓ…', 'hello', '2']]);
 });
+
+test('zero-width characters are dropped', () => {
+  assert.deepEqual(splitLyrics('கண்‌ண​'), [['கண்', 'ண']]);
+});
+
+test('brackets and quotes attach to neighbouring syllables', () => {
+  assert.deepEqual(splitLyrics('(கண்ணே!)'), [['(கண்', 'ணே!)']]);
+  assert.deepEqual(splitLyrics('"க"'), [['"க"']]);
+});

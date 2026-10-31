@@ -1,6 +1,6 @@
 // Export/import a song as a single JSON file, optionally with its recording.
 
-import { FORMAT_VERSION } from './model.js';
+import { FORMAT_VERSION, DEFAULT_GAMAKAS } from './model.js';
 
 const APP = 'swara-notes';
 
@@ -41,10 +41,19 @@ export function importSong(text) {
   if (typeof data.formatVersion !== 'number' || data.formatVersion > FORMAT_VERSION) {
     throw new Error('This file was made by a newer version of Swara Notes.');
   }
-  if (!data.song || !Array.isArray(data.song.lines)) throw new Error('This is not a valid song file.');
+  const valid = data.song && Array.isArray(data.song.lines) && data.song.lines.every((l) =>
+    Array.isArray(l?.syllables) && l.syllables.every((s) => s && Array.isArray(s.notes)));
+  if (!valid) throw new Error('This is not a valid song file.');
 
   // A fresh id means importing never overwrites an existing song.
-  const song = { ...data.song, id: crypto.randomUUID(), updatedAt: Date.now() };
+  const song = {
+    ...data.song,
+    jarus: Array.isArray(data.song.jarus) ? data.song.jarus : [],
+    gamakaTable: Array.isArray(data.song.gamakaTable) ? data.song.gamakaTable : DEFAULT_GAMAKAS.map((g) => ({ ...g })),
+    defaultScale: data.song.defaultScale ?? {},
+    id: crypto.randomUUID(),
+    updatedAt: Date.now(),
+  };
   const r = data.recording;
   const recording = r?.dataBase64
     ? { name: r.name ?? '', type: r.type ?? '', blob: base64ToBlob(r.dataBase64, r.type ?? '') }

@@ -46,6 +46,10 @@ export function allNotes(song) {
   return song.lines.flatMap((l) => l.syllables.flatMap((s) => s.notes));
 }
 
+export function gamakaUsage(song, gamakaId) {
+  return allNotes(song).filter((n) => n.gamakas.includes(gamakaId)).length;
+}
+
 export function noteCount(song) {
   return allNotes(song).length;
 }

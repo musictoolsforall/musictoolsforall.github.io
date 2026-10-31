@@ -128,7 +128,7 @@ export function createPlayer(container, { onFileChosen } = {}) {
   }
 
   function onKey(e) {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey || document.querySelector('dialog[open]')) return;
     const actions = {
       ' ': () => toggle(),
       ',': () => setLoop(audio.currentTime, loop?.b ?? audio.duration),

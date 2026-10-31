@@ -3,7 +3,7 @@
 import { renderNotation } from '../render.js';
 import { createPlayer } from '../player.js';
 import { getSetting, setSetting } from '../storage.js';
-import { createEditorState, applyKey } from '../editor-keys.js';
+import { createEditorState, applyKey, normalizeKey } from '../editor-keys.js';
 import {
   setLyrics, clearSwaras, noteCount, addJaru, editSyllableText, setSyllableEn, splitSyllable,
 } from '../model.js';
@@ -13,6 +13,7 @@ const KEY_HELP = [
   ['s r g m p d n', 'swara'], [',', 'rest / karvai'], ['1 2 3', 'variant of last swara (R1, R2…)'],
   ["'  ''", 'next swara 1 or 2 octaves up'], ['.  ..', 'next swara 1 or 2 octaves down'],
   ['/', 'start a jaru from the last swara; the next swara (or a clicked one) ends it'],
+  ['Esc', 'cancel a started jaru or octave dot'],
   ['~  v  ^', 'kampita, pull (↓), sphurita — see Settings for your own'],
   ['Space / Tab', 'next syllable'], ['Shift+Tab', 'previous syllable'], ['Enter', 'next line'],
   ['Backspace', 'delete last swara'], ['Ctrl+Backspace', 'delete syllable'],
@@ -23,12 +24,16 @@ const KEY_HELP = [
 ];
 
 // Mount a player for a song, restoring its saved recording.
-export async function mountSongPlayer(slot, store, song, onChange) {
+export async function mountSongPlayer(slot, store, song, onChange, onError) {
   const player = createPlayer(slot, {
     onFileChosen: async (file) => {
-      await store.putRecording(song.id, file);
       song.recordingName = file.name;
       onChange?.();
+      try {
+        await store.putRecording(song.id, file);
+      } catch {
+        onError?.(`Couldn't keep "${file.name}" in the browser (too big or storage full). It plays now, but you'll need to choose it again next time.`);
+      }
     },
   });
   const rec = await store.getRecording(song.id);
@@ -45,7 +50,8 @@ function h(tag, props = {}, ...children) {
   return e;
 }
 
-const isTyping = (t) => t instanceof HTMLElement && (t.closest('input, textarea, select, dialog[open]') !== null);
+const isTyping = (t) => document.querySelector('dialog[open]') !== null
+  || (t instanceof HTMLElement && t.closest('input, textarea, select') !== null);
 
 export async function mountEditor(root, store, songId, { openSettings } = {}) {
   const song = await store.getSong(songId);
@@ -59,11 +65,27 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
   let script = getSetting('script', 'both');
   applyFontScale(getSetting('fontScale', 1));
 
+  const saveError = h('div', { className: 'banner', hidden: true });
   let saveTimer = 0;
+  const saveNow = () => {
+    clearTimeout(saveTimer);
+    return store.putSong(song).then(
+      () => { saveError.hidden = true; },
+      () => {
+        saveError.textContent = 'Not saved! The browser refused to store this song. Go to Songs → Export to keep your work.';
+        saveError.hidden = false;
+      },
+    );
+  };
   const save = () => {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => store.putSong(song), 500);
+    saveTimer = setTimeout(saveNow, 500);
   };
+  // Save straight away if the tab is closed, reloaded or hidden (phone/tablet app switch).
+  const flush = () => { if (document.visibilityState === 'hidden') saveNow(); };
+  window.addEventListener('pagehide', saveNow);
+  document.addEventListener('visibilitychange', flush);
+  const showError = (msg) => { saveError.textContent = msg; saveError.hidden = false; };
 
   const playerSlot = h('div', { className: 'player-slot sticky' });
   const toolbar = h('div', { className: 'toolbar' });
@@ -72,9 +94,9 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
   const lyricsPanel = h('div', { className: 'lyrics-panel' });
   const helpPanel = h('div', { className: 'help-panel', hidden: true });
   const notation = h('div');
-  root.append(playerSlot, toolbar, meta, lyricsPanel, helpPanel, status, notation);
+  root.append(saveError, playerSlot, toolbar, meta, lyricsPanel, helpPanel, status, notation);
 
-  const player = await mountSongPlayer(playerSlot, store, song, save);
+  const player = await mountSongPlayer(playerSlot, store, song, save, showError);
 
   // --- toolbar ---
   const field = (label, key, width) => {
@@ -185,7 +207,8 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
 
   function onKey(e) {
     if (isTyping(e.target)) return;
-    const key = e.altKey && e.code === 'KeyM' ? 'm' : e.key;
+    const key = normalizeKey(e);
+    if (key === null) return;
     const { handled } = applyKey(state, { key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey });
     if (!handled) return;
     e.preventDefault();
@@ -198,8 +221,9 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
 
   return () => {
     document.removeEventListener('keydown', onKey);
-    clearTimeout(saveTimer);
-    store.putSong(song);
+    window.removeEventListener('pagehide', saveNow);
+    document.removeEventListener('visibilitychange', flush);
+    saveNow();
     player.destroy();
   };
 }

@@ -79,3 +79,13 @@ test('gamaka key validation', async () => {
   assert.equal(gamakaKeyError(s.gamakaTable, 'v', 'pull'), '');
   assert.match(gamakaKeyError(s.gamakaTable, 'kk', null), /one character/i);
 });
+
+test('gamakaUsage counts notes carrying a gamaka', async () => {
+  const { gamakaUsage, toggleGamaka } = await import('../js/model.js');
+  const s = createSong('t'); setLyrics(s, 'க ண');
+  const [a, b] = s.lines[0].syllables;
+  toggleGamaka(s, addNote(s, a.id, { swara: 'S' }).id, 'kampita');
+  toggleGamaka(s, addNote(s, b.id, { swara: 'R' }).id, 'kampita');
+  assert.equal(gamakaUsage(s, 'kampita'), 2);
+  assert.equal(gamakaUsage(s, 'pull'), 0);
+});

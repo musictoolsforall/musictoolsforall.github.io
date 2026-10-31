@@ -49,3 +49,20 @@ test('backspace removes last note, ctrl+backspace removes syllable', () => {
   applyKey(st, { key: 'Backspace', ctrl: true });
   assert.equal(st.song.lines[0].syllables[0].lyricTa, 'ண');
 });
+
+test('escape clears pending jaru and octave', () => {
+  const st = setup(); keys(st, "s/'");
+  applyKey(st, { key: 'Escape' });
+  assert.equal(st.pendingJaruFrom, null); assert.equal(st.pendingOctave, 0);
+  keys(st, 'r'); assert.equal(st.song.jarus.length, 0);
+});
+
+test('normalizeKey maps non-latin layouts via code', async () => {
+  const { normalizeKey } = await import('../js/editor-keys.js');
+  assert.equal(normalizeKey({ key: 'ச', code: 'KeyS' }), 's');
+  assert.equal(normalizeKey({ key: 'ம', code: 'KeyM', altKey: true }), 'm');
+  assert.equal(normalizeKey({ key: 'Process', code: 'KeyS' }), null);
+  assert.equal(normalizeKey({ key: 's', code: 'KeyS', isComposing: true }), null);
+  assert.equal(normalizeKey({ key: '~', code: 'Backquote' }), '~');
+  assert.equal(normalizeKey({ key: 'Tab', code: 'Tab' }), 'Tab');
+});
