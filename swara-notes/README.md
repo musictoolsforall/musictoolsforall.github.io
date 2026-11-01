@@ -14,6 +14,10 @@ loop and slow down a class recording.
   sphurita `ˆ`. Edit the table or add your own in **Settings**
 - Recording player with A–B loop and 0.5× / 0.75× speed
 - Practice view with big text
+- **PDF / Print** from the practice view (choose "Save as PDF" in the print
+  dialog). It prints in the script you picked, at the A−/A+ size, on A4
+- **Text** download, e.g. `sree[S ⌜R1~] ka[Ṡ⌝ P]`, to paste into messages.
+  `⌜ … ⌝` marks a jaru, and a key at the end explains the marks
 
 ## Privacy
 

@@ -111,8 +111,11 @@ button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(
 .ly-ta { font-size: 1.5em; border-top: 1px solid var(--border); margin-top: 2px; padding-top: 2px; }
 .ly-en { font-size: 1em; color: var(--muted); font-style: italic; }
 
-svg.jarus { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-svg.jarus line.jaru { stroke: var(--jaru); stroke-width: 2.5; stroke-linecap: round; }
+.notation .syl { position: relative; }
+.jaru-seg {
+  position: absolute; height: 2.5px; border-radius: 2px;
+  background: var(--jaru); pointer-events: none;
+}
 
 @media (max-width: 600px) {
   main { padding: 12px 16px; }
@@ -168,3 +171,30 @@ kbd { font-family: ui-monospace, monospace; background: var(--accent-soft); bord
 .gamaka-table th { text-align: left; font-weight: 600; padding: 4px; }
 .gamaka-table td { padding: 3px 4px; }
 .gamaka-table input { width: 100%; }
+
+/* ---------- print / PDF ---------- */
+.print-only { display: none; }
+.print-head h1 { margin: 0 0 2px; }
+.print-head p { margin: 0 0 10px; color: var(--muted); }
+
+/* .printing is set by JS just before printing, so the jaru lines are
+   measured at paper width (A4 with 12 mm margins = 186 mm). */
+:root.printing main { width: 186mm; max-width: none; padding: 0; margin: 0; }
+:root.printing {
+  --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --border: #bbb;
+  --jaru: #b3261e; --mark: #1d5fa8; color-scheme: light;
+}
+@page { size: A4; margin: 12mm; }
+@media print {
+  :root {
+    --bg: #fff; --surface: #fff; --text: #000; --muted: #444; --border: #bbb;
+    --jaru: #b3261e; --mark: #1d5fa8; color-scheme: light;
+  }
+  main { width: 186mm; max-width: none; padding: 0; margin: 0; }
+  .player-slot, .toolbar, .banner { display: none !important; }
+  .print-only { display: block; }
+  .print-head { break-after: avoid; }
+  .notation .syl { break-inside: avoid; }
+  .notation .syl.cursor { background: none; outline: none; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

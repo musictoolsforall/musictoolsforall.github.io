@@ -1,10 +1,9 @@
-// Render a song's notation into a container, with jaru lines drawn in an
-// SVG overlay that is recomputed whenever the layout changes.
+// Render a song's notation into a container, with jaru lines drawn as thin
+// bars (one per visual row) that are recomputed whenever the layout changes.
 
 import { swaraDisplay } from './swara.js';
 import { jaruSegments } from './jaru-geom.js';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
 const observers = new WeakMap();
 
 function el(tag, className, text) {
@@ -57,14 +56,13 @@ function syllableEl(syl, lineIdx, sylIdx, song, opts) {
   return col;
 }
 
+// Each jaru segment is a thin bar placed inside the first syllable column of
+// the visual row it belongs to, positioned relative to that column. When the
+// page reflows or a printout breaks across pages, the row moves and its jaru
+// bars move with it.
 function drawJarus(container, song) {
-  const svg = container.querySelector('svg.jarus');
-  if (!svg) return;
-  svg.replaceChildren();
+  for (const old of container.querySelectorAll('.jaru-seg')) old.remove();
   const base = container.getBoundingClientRect();
-  svg.setAttribute('width', container.scrollWidth);
-  svg.setAttribute('height', container.scrollHeight);
-
   const rel = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top });
 
   // Visual rows = groups of top swara rows sharing a vertical position.
@@ -74,7 +72,7 @@ function drawJarus(container, song) {
     const key = Math.round(r.top);
     const row = rowsByTop.get(key);
     if (row) { row.left = Math.min(row.left, r.left); row.right = Math.max(row.right, r.right); }
-    else rowsByTop.set(key, { ...r, top: key });
+    else rowsByTop.set(key, { ...r, top: key, anchor: top.closest('.syl') });
   }
   const rows = [...rowsByTop.values()].sort((a, b) => a.top - b.top);
 
@@ -89,14 +87,23 @@ function drawJarus(container, song) {
     const a = boxOf(j.from), b = boxOf(j.to);
     if (!a || !b) continue;
     for (const s of jaruSegments(a, b, rows)) {
-      const line = document.createElementNS(SVG_NS, 'line');
-      const y = s.y + 6; // just above the swara glyphs, inside the row's top padding
-      line.setAttribute('x1', s.x1); line.setAttribute('x2', s.x2);
-      line.setAttribute('y1', y); line.setAttribute('y2', y);
-      line.setAttribute('class', 'jaru');
-      svg.append(line);
+      const anchor = rowsByTop.get(s.y)?.anchor;
+      if (!anchor) continue;
+      const off = rel(anchor.getBoundingClientRect());
+      const bar = el('span', 'jaru-seg');
+      bar.setAttribute('aria-hidden', 'true');
+      bar.style.left = `${s.x1 - off.left}px`;
+      bar.style.width = `${Math.max(0, s.x2 - s.x1)}px`;
+      bar.style.top = `${s.y - off.top + 5}px`; // just above the swara glyphs, inside the row's top padding
+      anchor.append(bar);
     }
   }
+}
+
+// Recompute jaru positions now (e.g. right before printing, after the
+// layout width has changed).
+export function redrawJarus(container, song) {
+  drawJarus(container, song);
 }
 
 export function renderNotation(container, song, opts) {
@@ -110,11 +117,6 @@ export function renderNotation(container, song, opts) {
     }
     container.append(row);
   }
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', 'jarus');
-  svg.setAttribute('aria-hidden', 'true');
-  container.append(svg);
-
   container.onclick = (e) => {
     const note = e.target.closest('.note[data-note-id]');
     if (note && opts.onNoteClick && opts.onNoteClick(note.dataset.noteId)) return;

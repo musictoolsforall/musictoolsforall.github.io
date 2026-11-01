@@ -1,6 +1,8 @@
 // Practice screen: read-only notation, big and legible, with the player on top.
 
-import { renderNotation } from '../render.js';
+import { renderNotation, redrawJarus } from '../render.js';
+import { songToText } from '../text-export.js';
+import { download, safeName } from '../download.js';
 import { getSetting, setSetting } from '../storage.js';
 
 const SCRIPTS = [['ta', 'தமிழ்'], ['en', 'English'], ['both', 'Both']];
@@ -34,8 +36,10 @@ export async function mountPractice(root, store, songId, { mountPlayer } = {}) {
   playerSlot.className = 'player-slot sticky';
   const toolbar = document.createElement('div');
   toolbar.className = 'toolbar';
+  const printHead = document.createElement('header');
+  printHead.className = 'print-only print-head';
   const notation = document.createElement('div');
-  root.append(playerSlot, toolbar, notation);
+  root.append(playerSlot, toolbar, printHead, notation);
   const player = mountPlayer ? await mountPlayer(playerSlot, song) : null;
 
   let script = getSetting('script', 'both');
@@ -66,13 +70,49 @@ export async function mountPractice(root, store, songId, { mountPlayer } = {}) {
     bigger.textContent = 'A+';
     bigger.onclick = () => { fontScale = Math.min(2.5, +(fontScale + 0.1).toFixed(2)); setSetting('fontScale', fontScale); applyFontScale(fontScale); };
 
+    const pdf = document.createElement('button');
+    pdf.textContent = 'PDF / Print';
+    pdf.title = 'Opens the print dialog. Choose "Save as PDF" to get a PDF file.';
+    pdf.onclick = () => window.print();
+    const txt = document.createElement('button');
+    txt.textContent = 'Text';
+    txt.title = 'Download as a plain-text file you can paste into messages or notes';
+    txt.onclick = () => download(`${safeName(song.title)}.txt`,
+      songToText(song, { script, hideVariants }), 'text/plain;charset=utf-8');
+
     const spacer = document.createElement('span');
     spacer.className = 'spacer';
     toolbar.append(back, title, spacer,
       scriptToggle(script, (s) => { script = s; setSetting('script', s); draw(); }),
-      variants, smaller, bigger, edit);
+      variants, smaller, bigger, pdf, txt, edit);
+
+    printHead.replaceChildren();
+    const h = document.createElement('h1');
+    h.textContent = song.title || 'Untitled';
+    const meta = [song.raga && `Raga: ${song.raga}`, song.tala && `Tala: ${song.tala}`].filter(Boolean);
+    printHead.append(h);
+    if (meta.length) printHead.append(Object.assign(document.createElement('p'), { textContent: meta.join(' · ') }));
     renderNotation(notation, song, { script, hideVariants });
   };
   draw();
-  return () => player?.destroy();
+
+  // Lay the page out at paper width before printing so the jaru lines are
+  // measured where they will actually be printed, then restore afterwards.
+  const beforePrint = () => {
+    document.documentElement.classList.add('printing');
+    redrawJarus(notation, song);
+  };
+  const afterPrint = () => {
+    document.documentElement.classList.remove('printing');
+    redrawJarus(notation, song);
+  };
+  window.addEventListener('beforeprint', beforePrint);
+  window.addEventListener('afterprint', afterPrint);
+
+  return () => {
+    window.removeEventListener('beforeprint', beforePrint);
+    window.removeEventListener('afterprint', afterPrint);
+    afterPrint();
+    player?.destroy();
+  };
 }

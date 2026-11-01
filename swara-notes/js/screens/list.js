@@ -3,23 +3,13 @@
 import { createSong } from '../model.js';
 import { exportSong, importSong } from '../export.js';
 import { getSetting } from '../storage.js';
+import { download, safeName } from '../download.js';
 
 function h(tag, props = {}, ...children) {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...children);
   return e;
 }
-
-function download(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = h('a', { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-const safeName = (t) => (t || 'song').replace(/[\\/:*?"<>|]+/g, '').trim() || 'song';
 
 export async function mountList(root, store) {
   const message = h('p', { className: 'message', role: 'status' });
