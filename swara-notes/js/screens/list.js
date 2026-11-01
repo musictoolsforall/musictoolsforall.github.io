@@ -92,6 +92,7 @@ export async function mountList(root, store) {
   }
 
   root.replaceChildren(
+    h('a', { href: '../', textContent: '← All tools' }),
     h('h1', { textContent: 'Swara Notes' }),
     h('p', { className: 'muted', textContent: 'Your songs and recordings stay in this browser. Use Export to back up or move a song to another device.' }),
     h('div', { className: 'toolbar' }, newBtn, importBtn, fileInput),
