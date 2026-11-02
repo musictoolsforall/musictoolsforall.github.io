@@ -13,6 +13,8 @@ loop and slow down a class recording.
 - Gamakas: jaru (line above the notes), kampita `~`, pull after pluck `↓`,
   sphurita `ˆ`. Edit the table or add your own in **Settings**
 - Recording player with A–B loop and 0.5× / 0.75× speed
+- Change the lyrics any time with **Lyrics**: swaras stay on every line whose
+  words you didn't change; only changed lines lose theirs (you're asked first)
 - Practice view with big text
 - **PDF / Print** from the practice view (choose "Save as PDF" in the print
   dialog). It prints in the script you picked, at the A−/A+ size, on A4

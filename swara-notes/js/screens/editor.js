@@ -5,7 +5,7 @@ import { createPlayer } from '../player.js';
 import { getSetting, setSetting } from '../storage.js';
 import { createEditorState, applyKey, normalizeKey } from '../editor-keys.js';
 import {
-  setLyrics, clearSwaras, noteCount, addJaru, editSyllableText, setSyllableEn, splitSyllable,
+  setLyrics, lyricsChange, addJaru, editSyllableText, setSyllableEn, splitSyllable,
 } from '../model.js';
 import { scriptToggle, applyFontScale } from './practice.js';
 
@@ -149,9 +149,12 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
     const use = h('button', {
       className: 'primary', textContent: 'Use these lyrics',
       onclick: () => {
-        if (noteCount(song) > 0) {
-          if (!confirm('This clears all swaras for this song. Continue?')) return;
-          clearSwaras(song);
+        // Only lines whose words changed lose their swaras.
+        const { lostNotes, changedLines } = lyricsChange(song, ta.value, { from });
+        if (lostNotes > 0) {
+          const lines = changedLines === 1 ? '1 changed line' : `${changedLines} changed lines`;
+          const notes = lostNotes === 1 ? '1 swara' : `${lostNotes} swaras`;
+          if (!confirm(`${notes} on ${lines} will be removed. Swaras on all other lines are kept. Continue?`)) return;
         }
         setLyrics(song, ta.value, { from, other: other.checked });
         state.cursor = { lineIdx: 0, sylIdx: 0 };

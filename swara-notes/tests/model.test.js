@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createSong, setLyrics, addNote, addJaru, deleteNote, mergeWithNext, splitSyllable,
   deleteSyllable, insertSyllableAfter, setSyllableEn, editSyllableText, noteCount, clearSwaras,
+  insertLineAfter, lyricsChange,
 } from '../js/model.js';
 
 test('setLyrics builds syllables with translit', () => {
@@ -12,9 +13,8 @@ test('setLyrics builds syllables with translit', () => {
   assert.equal(s.formatVersion, 1);
 });
 
-test('setLyrics refuses when swaras exist', () => {
+test('clearSwaras removes every note', () => {
   const s = createSong('t'); setLyrics(s, 'க'); addNote(s, s.lines[0].syllables[0].id, { swara: 'S' });
-  assert.throws(() => setLyrics(s, 'ண'), /has swaras/);
   clearSwaras(s); assert.equal(noteCount(s), 0);
   setLyrics(s, 'ண'); assert.equal(s.lines[0].syllables[0].lyricTa, 'ண');
 });
@@ -113,4 +113,85 @@ test('setLyrics keeps the pasted text for re-editing', () => {
   setLyrics(s, 'kaaRRu\nvaazhkai', { from: 'en' });
   assert.equal(s.lyricsSource, 'kaaRRu\nvaazhkai');
   assert.equal(s.lyricsFrom, 'en');
+});
+
+// --- re-pasting lyrics keeps swaras on unchanged lines ---
+const sylId = (s, l, i) => s.lines[l].syllables[i].id;
+
+test('re-paste keeps swaras on unchanged lines and drops them on changed ones', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க ண\nநா த\nஸ்ரீ');
+  addNote(s, sylId(s, 0, 0), { swara: 'S' });
+  addNote(s, sylId(s, 1, 0), { swara: 'R' });
+  addNote(s, sylId(s, 2, 0), { swara: 'G' });
+  const kept = s.lines[2];
+  setLyrics(s, 'க ண\nநா ம\nஸ்ரீ');
+  assert.equal(s.lines.length, 3);
+  assert.deepEqual(s.lines[0].syllables[0].notes.map((n) => n.swara), ['S']);
+  assert.deepEqual(s.lines[1].syllables.map((x) => x.notes.length), [0, 0]);
+  assert.equal(s.lines[1].syllables[1].lyricTa, 'ம');
+  assert.equal(s.lines[2], kept);
+  assert.deepEqual(s.lines[2].syllables[0].notes.map((n) => n.swara), ['G']);
+});
+
+test('re-paste handles inserted and removed lines', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க\nண\nநா');
+  for (let i = 0; i < 3; i++) addNote(s, sylId(s, i, 0), { swara: 'S' });
+  setLyrics(s, 'புது\nக\nநா');
+  assert.deepEqual(s.lines.map((l) => l.syllables[0].lyricTa), ['பு', 'க', 'நா']);
+  assert.deepEqual(s.lines.map((l) => l.syllables[0].notes.length), [0, 1, 1]);
+});
+
+test('lyricsChange reports how many swaras would be lost, without changing the song', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க\nண');
+  addNote(s, sylId(s, 0, 0), { swara: 'S' });
+  addNote(s, sylId(s, 1, 0), { swara: 'R' });
+  addNote(s, sylId(s, 1, 0), { swara: 'G' });
+  const before = JSON.stringify(s);
+  assert.deepEqual(lyricsChange(s, 'க\nம'), { lostNotes: 2, changedLines: 1 });
+  assert.deepEqual(lyricsChange(s, 'க\nண'), { lostNotes: 0, changedLines: 0 });
+  assert.equal(JSON.stringify(s), before);
+});
+
+test('jarus touching a removed note are dropped, others kept', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க\nண\nநா');
+  const a = addNote(s, sylId(s, 0, 0), { swara: 'S' });
+  const b = addNote(s, sylId(s, 0, 0), { swara: 'R' });
+  const c = addNote(s, sylId(s, 1, 0), { swara: 'G' });
+  addJaru(s, a.id, b.id);
+  addJaru(s, b.id, c.id);
+  setLyrics(s, 'க\nம\nநா');
+  assert.deepEqual(s.jarus.map((j) => [j.from, j.to]), [[a.id, b.id]]);
+});
+
+test('a line edited by hand (double-click) still matches its pasted text', () => {
+  const s = createSong('t');
+  setLyrics(s, 'kaaRRu', { from: 'en' });
+  addNote(s, sylId(s, 0, 0), { swara: 'S' });
+  editSyllableText(s, sylId(s, 0, 0), 'கா');
+  setLyrics(s, 'kaaRRu\nputhu', { from: 'en' });
+  assert.equal(s.lines[0].syllables[0].notes.length, 1);
+  assert.equal(s.lines.length, 2);
+});
+
+test('interlude lines (no words) stay in place', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க\nண');
+  insertLineAfter(s, s.lines[0].id);
+  addNote(s, s.lines[1].syllables[0].id, { swara: 'P' });
+  setLyrics(s, 'க\nம');
+  assert.equal(s.lines.length, 3);
+  assert.equal(s.lines[1].syllables[0].notes[0].swara, 'P');
+  assert.equal(s.lines[2].syllables[0].lyricTa, 'ம');
+});
+
+test('a changed line stays in its place, before a following interlude', () => {
+  const s = createSong('t');
+  setLyrics(s, 'க');
+  insertLineAfter(s, s.lines[0].id);
+  setLyrics(s, 'ம\nபுது');
+  assert.deepEqual(s.lines.map((l) => l.syllables.map((x) => x.lyricTa).join('')), ['ம', '', 'புது']);
 });

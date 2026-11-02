@@ -55,16 +55,91 @@ export function noteCount(song) {
   return allNotes(song).length;
 }
 
+// Words of a line, ignoring how it's split into syllables.
+const lineKey = (line) => line.syllables.map((x) => x.lyricTa).join('');
+const isInterlude = (line) => lineKey(line) === '';
+
+// Line up the new pasted text against the song's current lines (longest
+// common subsequence). A line whose words are unchanged keeps its syllables,
+// swaras and hand edits; changed or new lines start fresh. Lines with no
+// words (interludes) are never in the pasted text, so they are kept where
+// they are. Pure: returns the new lines and which old notes would be lost.
+function planLyrics(song, text, from) {
+  const srcLines = String(text).split('\n').map((l) => l.trim()).filter(Boolean);
+  const fresh = srcLines.map((src) => {
+    const syls = splitLyrics(from === 'en' ? toTamil(src) : src)[0] ?? [];
+    return { src, key: syls.join(''), syls };
+  }).filter((n) => n.syls.length);
+
+  const old = song.lines;
+  const matches = (o, n) => !isInterlude(o) && (lineKey(o) === n.key || (o.src != null && o.src === n.src));
+
+  // LCS table over (old lines, new lines).
+  const L = Array.from({ length: old.length + 1 }, () => new Array(fresh.length + 1).fill(0));
+  for (let i = old.length - 1; i >= 0; i--) {
+    for (let j = fresh.length - 1; j >= 0; j--) {
+      L[i][j] = matches(old[i], fresh[j]) ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    }
+  }
+
+  const lines = [];
+  const lost = [];
+  let changedLines = 0;
+  // Between two matching lines there's a gap of removed old lines and added
+  // new ones. A new line takes the place of the removed line it replaces;
+  // interludes stay in their position; extra new lines go at the end of the gap.
+  let gapOld = [], gapNew = [];
+  const flush = () => {
+    let k = 0;
+    for (const o of gapOld) {
+      if (isInterlude(o)) { lines.push({ old: o }); continue; }
+      const notes = o.syllables.flatMap((x) => x.notes);
+      lost.push(...notes);
+      if (notes.length) changedLines++;
+      if (k < gapNew.length) lines.push({ fresh: gapNew[k++] });
+    }
+    for (; k < gapNew.length; k++) lines.push({ fresh: gapNew[k] });
+    gapOld = []; gapNew = [];
+  };
+  let i = 0, j = 0;
+  while (i < old.length || j < fresh.length) {
+    if (i < old.length && j < fresh.length && matches(old[i], fresh[j])) {
+      flush();
+      lines.push({ old: old[i], src: fresh[j].src });
+      i++; j++;
+    } else if (i < old.length && (j === fresh.length || L[i + 1][j] >= L[i][j + 1])) {
+      gapOld.push(old[i++]);
+    } else {
+      gapNew.push(fresh[j++]);
+    }
+  }
+  flush();
+  return { lines, lost, changedLines };
+}
+
+// What re-pasting `text` would cost, without changing the song.
+export function lyricsChange(song, text, { from = 'ta' } = {}) {
+  const { lost, changedLines } = planLyrics(song, text, from);
+  return { lostNotes: lost.length, changedLines };
+}
+
 // `from`: the script the pasted text is in ('ta' or 'en'). `other`: whether
 // to also show it in the other script. English text is converted to Tamil
-// first, since syllables are split on the Tamil.
+// first, since syllables are split on the Tamil. Swaras on lines whose
+// words didn't change are kept; see planLyrics.
 export function setLyrics(song, text, { from = 'ta', other = true } = {}) {
-  if (noteCount(song) > 0) throw new Error('song has swaras');
+  const { lines, lost } = planLyrics(song, text, from);
   song.lyricsFrom = from;
   song.lyricsSource = text;
   song.lyricScripts = { ta: from === 'ta' || other, en: from === 'en' || other };
-  song.lines = splitLyrics(from === 'en' ? toTamil(text) : text).map((syls) => ({ id: uid(), syllables: syls.map(makeSyllable) }));
-  song.jarus = [];
+  song.lines = lines.map((p) => {
+    if (p.old) {
+      if (p.src != null) p.old.src = p.src;
+      return p.old;
+    }
+    return { id: uid(), src: p.fresh.src, syllables: p.fresh.syls.map(makeSyllable) };
+  });
+  dropJarusFor(song, lost.map((n) => n.id));
   touch(song);
 }
 
