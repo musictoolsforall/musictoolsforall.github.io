@@ -4,6 +4,7 @@ import { renderNotation } from '../render.js';
 import { createPlayer } from '../player.js';
 import { getSetting, setSetting } from '../storage.js';
 import { createEditorState, applyKey, normalizeKey } from '../editor-keys.js';
+import { startTour } from '../tour.js';
 import {
   setLyrics, lyricsChange, addJaru, editSyllableText, setSyllableEn, splitSyllable,
 } from '../model.js';
@@ -28,6 +29,46 @@ const KEY_HELP = [
   ['Double-click', 'edit a syllable’s words (type a space to split it)'],
   ['Ctrl+Space', 'play / pause'], ['Ctrl+,  Ctrl+.', 'loop start / end'], ['Ctrl+/', 'clear loop'],
 ];
+
+// First-visit guide. Shown once per device; the Tutorial button replays it.
+function editorTourSteps(parts) {
+  return [
+    {
+      title: 'Welcome to Swara Notes',
+      html: '<p>Write the swaras your teacher sings <b>right above the words</b>, with gamaka marks, while your class recording plays.</p><p>This takes about a minute. You can try things on this song as you go.</p>',
+    },
+    {
+      title: 'Your class recording',
+      target: () => parts.playerSlot,
+      html: '<p><b>Choose recording</b> to pick an audio file from your device. It stays on your device.</p><p>Press <kbd>A</kbd> and <kbd>B</kbd> at the start and end of a phrase to loop it, and choose <b>0.75×</b> or <b>0.5×</b> to slow it down. <kbd>Ctrl+Space</kbd> plays or pauses.</p>',
+    },
+    {
+      title: 'The lyrics',
+      target: () => parts.lyricsButton,
+      html: '<p>Press <b>Lyrics</b> and paste the song’s words in Tamil or in English letters, one line per line. The app splits them into syllables and can write them in the other script too.</p><p>You can change them later. Only lines you change lose their swaras.</p>',
+    },
+    {
+      title: 'Type swaras',
+      target: () => parts.notation.querySelector('.syl.cursor') ?? parts.notation.querySelector('.syl'),
+      html: '<p><b>Click a syllable</b>, then type <kbd>s</kbd> <kbd>r</kbd> <kbd>g</kbd> <kbd>m</kbd> <kbd>p</kbd> <kbd>d</kbd> <kbd>n</kbd>. Each one shows in Tamil and English.</p><p>A number after a swara picks its variant: <kbd>r</kbd><kbd>2</kbd> → R₂. <kbd>,</kbd> is a karvai. <kbd>Backspace</kbd> removes the last swara.</p><p>Try it now!</p>',
+    },
+    {
+      title: 'Octaves and gamakas',
+      target: () => parts.notation,
+      html: '<p>Before a swara: <kbd>\'</kbd> puts it an octave up (dot above), <kbd>.</kbd> an octave down. Press twice for two dots.</p><p>After a swara: <kbd>~</kbd> kampita, <kbd>v</kbd> pull after pluck ↓, <kbd>^</kbd> sphurita. <b>Settings</b> lets you change these marks.</p><p><b>Jaru:</b> type the first swara, press <kbd>/</kbd>, then type (or click) the last swara. A line is drawn across.</p>',
+    },
+    {
+      title: 'Move around and repeat',
+      target: () => parts.notation,
+      html: '<p><kbd>Space</kbd> or <kbd>→</kbd> next syllable, <kbd>←</kbd> back, <kbd>Enter</kbd> or <kbd>↓</kbd> next line.</p><p>Same notes again? <kbd>Ctrl+C</kbd> copies a syllable’s swaras, <kbd>Alt+C</kbd> a whole line, and <kbd>Ctrl+V</kbd> pastes.</p><p>Everything saves by itself as you type.</p>',
+    },
+    {
+      title: 'Practise and share',
+      target: () => parts.practiceLink,
+      html: '<p><b>Practice</b> shows the song big and clean for playing along, with <b>PDF / Print</b> and <b>Text</b> to save or share it.</p><p>Forgot a key? Press <b>Keys</b>. Want this guide again? Press <b>Tutorial</b>.</p>',
+    },
+  ];
+}
 
 // Mount a player for a song, restoring its saved recording.
 export async function mountSongPlayer(slot, store, song, onChange, onError) {
@@ -105,6 +146,16 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
 
   const player = await mountSongPlayer(playerSlot, store, song, save, showError);
 
+  // --- guide ---
+  const tourParts = { playerSlot, notation, lyricsButton: null, practiceLink: null };
+  let stopTour = null;
+  const runTour = () => {
+    stopTour?.();
+    stopTour = startTour(editorTourSteps(tourParts), {
+      onDone: () => { stopTour = null; setSetting('tourSeen', true); },
+    });
+  };
+
   // --- toolbar ---
   const field = (label, key, width) => {
     const input = h('input', { value: song[key] ?? '', placeholder: label, title: label });
@@ -117,10 +168,11 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
       h('a', { href: '#/', textContent: '← Songs' }),
       h('span', { className: 'spacer' }),
       scriptToggle(script, (s) => { script = s; setSetting('script', s); drawToolbar(); draw(); }),
-      h('button', { textContent: 'Lyrics', onclick: () => showLyrics(true) }),
+      tourParts.lyricsButton = h('button', { textContent: 'Lyrics', onclick: () => showLyrics(true) }),
       h('button', { textContent: 'Settings', onclick: () => openSettings?.(song, () => { save(); draw(); }) }),
       h('button', { textContent: 'Keys', onclick: () => { helpPanel.hidden = !helpPanel.hidden; } }),
-      h('a', { href: `#/practice/${song.id}`, textContent: 'Practice' }),
+      h('button', { textContent: 'Tutorial', onclick: () => runTour() }),
+      tourParts.practiceLink = h('a', { href: `#/practice/${song.id}`, textContent: 'Practice' }),
     );
   };
   meta.append(field('Song title', 'title', '16em'), field('Raga', 'raga', '10em'), field('Tala (optional)', 'tala', '10em'));
@@ -253,8 +305,10 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
 
   drawToolbar();
   draw();
+  if (!getSetting('tourSeen', false)) runTour();
 
   return () => {
+    stopTour?.();
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('pagehide', saveNow);
     document.removeEventListener('visibilitychange', flush);

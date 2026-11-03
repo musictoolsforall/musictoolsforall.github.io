@@ -85,6 +85,10 @@ export async function mountList(root, store) {
     h('a', { href: '../', textContent: '← All tools' }),
     h('h1', { textContent: 'Swara Notes' }),
     h('p', { className: 'muted', textContent: 'Your songs and recordings stay in this browser. Use Export to back up or move a song to another device.' }),
+    getSetting('tourSeen', false) ? '' : h('p', { className: 'welcome' },
+      h('strong', { textContent: 'New here? ' }),
+      'Open the ', h('a', { href: '#/edit/demo', textContent: 'demo song' }),
+      ' for a one-minute guide to writing swaras, then press New song to start your own.'),
     h('div', { className: 'toolbar' }, newBtn, importBtn, fileInput),
     message, list,
   );

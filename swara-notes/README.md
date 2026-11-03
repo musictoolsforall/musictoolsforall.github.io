@@ -4,6 +4,7 @@ A small web app for writing Carnatic swaras above the syllables of a song's
 lyrics, with gamaka marks drawn the way your teacher draws them, while you
 loop and slow down a class recording.
 
+- A one-minute guide the first time you open the editor (**Tutorial** replays it)
 - Swaras and lyrics in Tamil, English, or both
 - Paste lyrics in Tamil script or in English letters; the app can write them
   in the other script for you (English → Tamil is a best guess: `aa` = ா,

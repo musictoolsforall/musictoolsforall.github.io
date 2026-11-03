@@ -198,3 +198,20 @@ kbd { font-family: ui-monospace, monospace; background: var(--accent-soft); bord
   .notation .syl.cursor { background: none; outline: none; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ---------- first-visit guide ---------- */
+.tour-card {
+  position: fixed; right: 16px; bottom: 16px; z-index: 20;
+  width: min(24em, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto;
+  background: var(--surface); color: var(--text);
+  border: 2px solid var(--accent); border-radius: 12px;
+  padding: 14px 16px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+}
+.tour-card h2 { font-size: 1.15rem; margin: 0 0 6px; }
+.tour-card p { margin: 0 0 8px; }
+.tour-card .tour-count { color: var(--muted); font-size: 0.85rem; margin: 0 0 2px; }
+.tour-nav { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 10px; }
+.tour-nav .tour-skip { margin-right: auto; border-color: transparent; background: none; color: var(--muted); }
+.tour-target { outline: 3px solid var(--accent) !important; outline-offset: 4px; border-radius: 8px; }
+.welcome { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
+@media print { .tour-card { display: none; } }
