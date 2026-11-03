@@ -66,3 +66,54 @@ test('normalizeKey maps non-latin layouts via code', async () => {
   assert.equal(normalizeKey({ key: '~', code: 'Backquote' }), '~');
   assert.equal(normalizeKey({ key: 'Tab', code: 'Tab' }), 'Tab');
 });
+
+// --- arrows, copy / paste ---
+test('arrow keys move between cells and lines', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண நா\nத ம'); const st = createEditorState(s);
+  applyKey(st, { key: 'ArrowRight' }); applyKey(st, { key: 'ArrowRight' });
+  assert.deepEqual(st.cursor, { lineIdx: 0, sylIdx: 2 });
+  applyKey(st, { key: 'ArrowDown' });            // column clamped to the shorter line
+  assert.deepEqual(st.cursor, { lineIdx: 1, sylIdx: 1 });
+  applyKey(st, { key: 'ArrowUp' });
+  assert.deepEqual(st.cursor, { lineIdx: 0, sylIdx: 1 });
+  applyKey(st, { key: 'ArrowLeft' }); applyKey(st, { key: 'ArrowLeft' });
+  assert.deepEqual(st.cursor, { lineIdx: 0, sylIdx: 0 });
+  applyKey(st, { key: 'ArrowUp' });               // nothing above: stays
+  assert.deepEqual(st.cursor, { lineIdx: 0, sylIdx: 0 });
+});
+
+test('Ctrl+C / Ctrl+V copies a cell and moves on to the next cell', () => {
+  const st = setup(); keys(st, 'sr');
+  const r = applyKey(st, { key: 'c', ctrl: true });
+  assert.match(r.message, /Copied 1 cell/);
+  applyKey(st, { key: ' ' });
+  applyKey(st, { key: 'v', ctrl: true });
+  assert.deepEqual(st.song.lines[0].syllables[1].notes.map((n) => n.swara), ['S', 'R']);
+  assert.deepEqual(st.cursor, { lineIdx: 1, sylIdx: 0 });   // next cell after the paste
+});
+
+test('Alt+C copies the whole line; paste onto another line', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண\nநா த'); const st = createEditorState(s);
+  keys(st, 's'); applyKey(st, { key: ' ' }); keys(st, 'p');
+  const r = applyKey(st, { key: 'c', alt: true });
+  assert.match(r.message, /Copied line \(2 cells\)/);
+  applyKey(st, { key: 'Enter' });
+  applyKey(st, { key: 'v', ctrl: true });
+  assert.deepEqual(s.lines[1].syllables.map((x) => x.notes.map((n) => n.swara).join('')), ['S', 'P']);
+});
+
+test('paste asks before overwriting swaras, and does nothing if refused', () => {
+  const st = setup(); keys(st, 's');
+  applyKey(st, { key: 'c', ctrl: true });
+  applyKey(st, { key: ' ' }); keys(st, 'g');
+  let asked = '';
+  const r = applyKey(st, { key: 'v', ctrl: true, confirm: (m) => { asked = m; return false; } });
+  assert.match(asked, /replace 1 swara/);
+  assert.equal(r.handled, true);
+  assert.deepEqual(st.song.lines[0].syllables[1].notes.map((n) => n.swara), ['G']);
+});
+
+test('paste with an empty clipboard says so', () => {
+  const st = setup();
+  assert.match(applyKey(st, { key: 'v', ctrl: true }).message, /Nothing copied/);
+});

@@ -293,3 +293,54 @@ export function setTalaMark(song, sylId, mark) {
   found.syl.talaMark = mark;
   touch(song);
 }
+
+// --- copy / paste swaras ---
+// A clip is a list of cells (one per copied syllable), each a list of notes
+// without ids, plus the jarus that lie entirely inside the copied cells,
+// stored as [cell, note] positions.
+
+export function copyNotes(song, sylIds) {
+  const syls = sylIds.map((id) => findSyllable(song, id)?.syl).filter(Boolean);
+  const where = new Map();
+  syls.forEach((syl, c) => syl.notes.forEach((n, k) => where.set(n.id, [c, k])));
+  return {
+    cells: syls.map((syl) => syl.notes.map(({ swara, variant, octave, gamakas }) => (
+      { swara, variant, octave, gamakas: [...gamakas] }))),
+    jarus: song.jarus
+      .filter((j) => where.has(j.from) && where.has(j.to))
+      .map((j) => ({ from: where.get(j.from), to: where.get(j.to) })),
+  };
+}
+
+// The syllables a paste starting at `startSylId` would fill: consecutive
+// cells on the same line, no further than its end.
+function pasteTargets(song, startSylId, clip) {
+  const found = findSyllable(song, startSylId);
+  if (!found) return [];
+  return found.line.syllables.slice(found.sylIdx, found.sylIdx + clip.cells.length);
+}
+
+export function notesInCells(song, startSylId, clip) {
+  return pasteTargets(song, startSylId, clip).reduce((sum, syl) => sum + syl.notes.length, 0);
+}
+
+// Replace the swaras of the target cells with the clip's. Returns how many
+// cells were pasted, how many didn't fit on the line, and the last cell filled.
+export function pasteNotes(song, startSylId, clip) {
+  const targets = pasteTargets(song, startSylId, clip);
+  dropJarusFor(song, targets.flatMap((syl) => syl.notes.map((n) => n.id)));
+  const ids = targets.map((syl, c) => {
+    syl.notes = clip.cells[c].map((n) => ({ ...n, gamakas: [...n.gamakas], id: uid() }));
+    return syl.notes.map((n) => n.id);
+  });
+  for (const j of clip.jarus) {
+    const from = ids[j.from[0]]?.[j.from[1]], to = ids[j.to[0]]?.[j.to[1]];
+    if (from && to) song.jarus.push({ id: uid(), from, to });
+  }
+  touch(song);
+  return {
+    pasted: targets.length,
+    skipped: clip.cells.length - targets.length,
+    lastSylId: targets.length ? targets[targets.length - 1].id : null,
+  };
+}

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createSong, setLyrics, addNote, addJaru, deleteNote, mergeWithNext, splitSyllable,
   deleteSyllable, insertSyllableAfter, setSyllableEn, editSyllableText, noteCount, clearSwaras,
-  insertLineAfter, lyricsChange,
+  insertLineAfter, lyricsChange, copyNotes, pasteNotes, notesInCells, toggleGamaka,
 } from '../js/model.js';
 
 test('setLyrics builds syllables with translit', () => {
@@ -194,4 +194,60 @@ test('a changed line stays in its place, before a following interlude', () => {
   insertLineAfter(s, s.lines[0].id);
   setLyrics(s, 'ம\nபுது');
   assert.deepEqual(s.lines.map((l) => l.syllables.map((x) => x.lyricTa).join('')), ['ம', '', 'புது']);
+});
+
+// --- copy / paste swaras ---
+test('copy one cell and paste into another, with fresh ids', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண நா');
+  const [a, b] = s.lines[0].syllables;
+  const n1 = addNote(s, a.id, { swara: 'R', variant: 2, octave: 1 });
+  toggleGamaka(s, n1.id, 'kampita');
+  addNote(s, a.id, { swara: 'G' });
+  const clip = copyNotes(s, [a.id]);
+  assert.deepEqual(pasteNotes(s, b.id, clip), { pasted: 1, skipped: 0, lastSylId: b.id });
+  assert.deepEqual(b.notes.map((n) => [n.swara, n.variant, n.octave, n.gamakas]), [['R', 2, 1, ['kampita']], ['G', 0, 0, []]]);
+  assert.notEqual(b.notes[0].id, a.notes[0].id);
+  b.notes[0].gamakas.push('x');
+  assert.deepEqual(a.notes[0].gamakas, ['kampita']); // a real copy, not shared
+});
+
+test('pasting replaces what was there and drops its jarus', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண');
+  const [a, b] = s.lines[0].syllables;
+  addNote(s, a.id, { swara: 'S' });
+  const x = addNote(s, b.id, { swara: 'P' }); const y = addNote(s, b.id, { swara: 'D' });
+  addJaru(s, x.id, y.id);
+  pasteNotes(s, b.id, copyNotes(s, [a.id]));
+  assert.deepEqual(b.notes.map((n) => n.swara), ['S']);
+  assert.equal(s.jarus.length, 0);
+});
+
+test('copy a line: jarus inside the copied cells come along', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண\nநா த');
+  const [a, b] = s.lines[0].syllables;
+  const p = addNote(s, a.id, { swara: 'P' }); const d = addNote(s, b.id, { swara: 'D' });
+  addJaru(s, p.id, d.id);
+  const clip = copyNotes(s, s.lines[0].syllables.map((x) => x.id));
+  const res = pasteNotes(s, s.lines[1].syllables[0].id, clip);
+  assert.deepEqual(res.pasted, 2);
+  const [c, e] = s.lines[1].syllables;
+  assert.equal(s.jarus.length, 2);
+  assert.deepEqual([s.jarus[1].from, s.jarus[1].to], [c.notes[0].id, e.notes[0].id]);
+});
+
+test('paste stops at the end of the line and says how many cells did not fit', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண நா\nத');
+  for (const x of s.lines[0].syllables) addNote(s, x.id, { swara: 'S' });
+  const res = pasteNotes(s, s.lines[1].syllables[0].id, copyNotes(s, s.lines[0].syllables.map((x) => x.id)));
+  assert.deepEqual([res.pasted, res.skipped], [1, 2]);
+});
+
+test('notesInCells counts swaras a paste would overwrite', () => {
+  const s = createSong('t'); setLyrics(s, 'க ண நா');
+  const [a, b, c] = s.lines[0].syllables;
+  addNote(s, a.id, { swara: 'S' }); addNote(s, a.id, { swara: 'R' });
+  addNote(s, c.id, { swara: 'G' });
+  const clip = copyNotes(s, [a.id, b.id]);
+  assert.equal(notesInCells(s, b.id, clip), 1);  // b empty, c has 1
+  assert.equal(notesInCells(s, a.id, clip), 2);
 });

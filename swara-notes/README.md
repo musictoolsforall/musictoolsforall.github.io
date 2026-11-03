@@ -13,6 +13,9 @@ loop and slow down a class recording.
 - Gamakas: jaru (line above the notes), kampita `~`, pull after pluck `↓`,
   sphurita `ˆ`. Edit the table or add your own in **Settings**
 - Recording player with A–B loop and 0.5× / 0.75× speed
+- Copy and paste swaras: **Ctrl+C** copies a syllable's swaras, **Alt+C** a whole
+  line's (gamakas and jarus included), **Ctrl+V** pastes. Arrow keys move
+  between syllables and lines
 - Change the lyrics any time with **Lyrics**: swaras stay on every line whose
   words you didn't change; only changed lines lose theirs (you're asked first)
 - Practice view with big text

@@ -9,13 +9,19 @@ import {
 } from '../model.js';
 import { scriptToggle, applyFontScale } from './practice.js';
 
+// Copied swaras, kept while the app is open so you can paste into another song.
+let sharedClipboard = null;
+
 const KEY_HELP = [
   ['s r g m p d n', 'swara'], [',', 'rest / karvai'], ['1 2 3', 'variant of last swara (R1, R2…)'],
   ["'  ''", 'next swara 1 or 2 octaves up'], ['.  ..', 'next swara 1 or 2 octaves down'],
   ['/', 'start a jaru from the last swara; the next swara (or a clicked one) ends it'],
   ['Esc', 'cancel a started jaru or octave dot'],
   ['~  v  ^', 'kampita, pull (↓), sphurita — see Settings for your own'],
-  ['Space / Tab', 'next syllable'], ['Shift+Tab', 'previous syllable'], ['Enter', 'next line'],
+  ['Space / Tab / →', 'next syllable'], ['Shift+Tab / ←', 'previous syllable'],
+  ['Enter', 'next line'], ['↑  ↓', 'line above / below'],
+  ['Ctrl+C', 'copy this syllable’s swaras'], ['Alt+C', 'copy the whole line’s swaras'],
+  ['Ctrl+V', 'paste here (a copied line fills cells from here to the end of the line)'],
   ['Backspace', 'delete last swara'], ['Ctrl+Backspace', 'delete syllable'],
   ['Ctrl+Enter', 'insert empty column (held vowel)'], ['Ctrl+Shift+Enter', 'insert interlude line'],
   ['Alt+M', 'merge with next syllable'], ['|', 'tala marker (when enabled)'],
@@ -61,7 +67,8 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
     return () => {};
   }
 
-  const state = createEditorState(song);
+  const state = createEditorState(song, sharedClipboard);
+  let flash = '';  // one-off message from the last key (e.g. "Copied line")
   let script = getSetting('script', 'both');
   applyFontScale(getSetting('fontScale', 1));
 
@@ -203,12 +210,14 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
     if (!song.lines.length) { showLyrics(true); }
     const oct = state.pendingOctave;
     status.textContent = [
+      flash,
       oct ? `Next swara: ${oct > 0 ? 'up' : 'down'} ${Math.abs(oct)} octave${Math.abs(oct) > 1 ? 's' : ''}` : '',
       state.pendingJaruFrom ? 'Jaru started — type or click the end swara' : '',
     ].filter(Boolean).join(' · ') || 'Click a syllable, then type swaras. Press Keys for help.';
     renderNotation(notation, song, {
       script, hideVariants: false, cursor: state.cursor, pendingJaruFrom: state.pendingJaruFrom,
       onSyllableClick: (lineIdx, sylIdx) => {
+        flash = '';
         state.cursor = { lineIdx, sylIdx };
         const notes = song.lines[lineIdx].syllables[sylIdx].notes;
         state.lastNoteId = notes.length ? notes[notes.length - 1].id : null;
@@ -230,9 +239,14 @@ export async function mountEditor(root, store, songId, { openSettings } = {}) {
     if (isTyping(e.target)) return;
     const key = normalizeKey(e);
     if (key === null) return;
-    const { handled } = applyKey(state, { key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey });
+    const { handled, message } = applyKey(state, {
+      key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey,
+      confirm: (text) => window.confirm(text),
+    });
     if (!handled) return;
     e.preventDefault();
+    sharedClipboard = state.clipboard;
+    flash = message ?? '';
     save(); draw();
   }
   document.addEventListener('keydown', onKey);
