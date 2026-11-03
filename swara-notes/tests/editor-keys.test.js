@@ -117,3 +117,30 @@ test('paste with an empty clipboard says so', () => {
   const st = setup();
   assert.match(applyKey(st, { key: 'v', ctrl: true }).message, /Nothing copied/);
 });
+
+test("Backspace undoes a pending octave dot before deleting a swara", () => {
+  const st = setup(); keys(st, "s'");
+  applyKey(st, { key: 'Backspace' });
+  keys(st, 'r');
+  const notes = st.song.lines[0].syllables[0].notes;
+  assert.deepEqual(notes.map((n) => [n.swara, n.octave]), [['S', 0], ['R', 0]]);
+});
+
+test("Backspace removes one dot at a time ('' then Backspace leaves one)", () => {
+  const st = setup(); keys(st, "''");
+  applyKey(st, { key: 'Backspace' });
+  keys(st, 'p');
+  assert.equal(st.song.lines[0].syllables[0].notes[0].octave, 1);
+  keys(st, '..'); applyKey(st, { key: 'Backspace' }); applyKey(st, { key: 'Backspace' });
+  keys(st, 'd');
+  assert.equal(st.song.lines[0].syllables[0].notes[1].octave, 0);
+});
+
+test('Backspace cancels a started jaru before deleting a swara', () => {
+  const st = setup(); keys(st, 's/');
+  applyKey(st, { key: 'Backspace' });
+  assert.equal(st.pendingJaruFrom, null);
+  assert.equal(st.song.lines[0].syllables[0].notes.length, 1);
+  keys(st, 'r');
+  assert.equal(st.song.jarus.length, 0);
+});

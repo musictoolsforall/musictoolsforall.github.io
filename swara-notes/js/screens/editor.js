@@ -22,7 +22,7 @@ const KEY_HELP = [
   ['Enter', 'next line'], ['↑  ↓', 'line above / below'],
   ['Ctrl+C', 'copy this syllable’s swaras'], ['Alt+C', 'copy the whole line’s swaras'],
   ['Ctrl+V', 'paste here (a copied line fills cells from here to the end of the line)'],
-  ['Backspace', 'delete last swara'], ['Ctrl+Backspace', 'delete syllable'],
+  ['Backspace', 'undo a typed octave dot or jaru start; otherwise delete last swara'], ['Ctrl+Backspace', 'delete syllable'],
   ['Ctrl+Enter', 'insert empty column (held vowel)'], ['Ctrl+Shift+Enter', 'insert interlude line'],
   ['Alt+M', 'merge with next syllable'], ['|', 'tala marker (when enabled)'],
   ['Double-click', 'edit a syllable’s words (type a space to split it)'],

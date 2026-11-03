@@ -167,6 +167,16 @@ export function applyKey(state, ev) {
   }
 
   if (key === 'Backspace') {
+    // Undo what's been typed but not used yet before deleting a swara:
+    // one octave dot at a time, then a started jaru.
+    if (state.pendingOctave) {
+      state.pendingOctave -= Math.sign(state.pendingOctave);
+      return { handled: true };
+    }
+    if (state.pendingJaruFrom) {
+      state.pendingJaruFrom = null;
+      return { handled: true };
+    }
     const last = syl?.notes[syl.notes.length - 1];
     if (last) {
       deleteNote(song, last.id);
